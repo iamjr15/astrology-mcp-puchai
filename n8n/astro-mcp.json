@@ -1,0 +1,232 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "astrologer-storage",
+        "authentication": "headerAuth",
+        "options": {}
+      },
+      "id": "ba933d0b-9f23-473d-82c0-c3dfa93950dd",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -500,
+        -40
+      ],
+      "webhookId": "8a8cab9a-51f9-4fef-85df-52c718b92a7a",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "12nNtP8jTgwovaYJ",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json.action }}",
+        "rules": {
+          "rules": [
+            {
+              "value2": "store_profile"
+            },
+            {
+              "value2": "get_profile",
+              "output": 1
+            },
+            {
+              "value2": "set_active_session",
+              "output": 2
+            }
+          ]
+        }
+      },
+      "id": "01cbb0d5-5041-49b1-b06a-9c1958efab77",
+      "name": "Action Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [
+        -280,
+        -240
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "point",
+        "operation": "upsertPoints",
+        "collectionName": {
+          "__rl": true,
+          "value": "astro_profiles",
+          "mode": "list",
+          "cachedResultName": "astro_profiles"
+        },
+        "points": "=[\n  {\n    \"id\": \"{{ $json.payload.profile_id }}\",\n    \"vector\": [0.1, 0.2, 0.3, 0.4, 0.5],\n    \"payload\": {{ $json.payload }}\n  }\n]",
+        "requestOptions": {}
+      },
+      "id": "ea54e0ce-2351-4b6e-a499-c78b1393c4da",
+      "name": "Upsert Profile",
+      "type": "n8n-nodes-qdrant.qdrant",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -240
+      ],
+      "credentials": {
+        "qdrantRestApi": {
+          "id": "Oby1BsrpVHPQrXSi",
+          "name": "Qdrant account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "search",
+        "operation": "queryPoints",
+        "collectionName": {
+          "__rl": true,
+          "value": "astro_profiles",
+          "mode": "list",
+          "cachedResultName": "astro_profiles"
+        },
+        "query": "={\n  \"vector\": [0.1, 0.2, 0.3, 0.4, 0.5],\n  \"limit\": 1\n}",
+        "filter": "={\n  \"must\": [\n    {\n      \"key\": \"profile_id\",\n      \"match\": {\n        \"value\": \"{{ $json.payload.profile_id }}\"\n      }\n    }\n  ]\n}",
+        "requestOptions": {}
+      },
+      "id": "196af20a-ed68-4f09-b9d6-354e82847271",
+      "name": "Query Profile",
+      "type": "n8n-nodes-qdrant.qdrant",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -40
+      ],
+      "credentials": {
+        "qdrantRestApi": {
+          "id": "Oby1BsrpVHPQrXSi",
+          "name": "Qdrant account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "point",
+        "operation": "upsertPoints",
+        "collectionName": {
+          "__rl": true,
+          "value": "astro_sessions",
+          "mode": "list",
+          "cachedResultName": "astro_sessions"
+        },
+        "points": "=[\n  {\n    \"id\": \"{{ $json.payload.session_id || 'default_session' }}\",\n    \"vector\": [0.2, 0.3, 0.4, 0.5, 0.6],\n    \"payload\": {\n      \"session_id\": \"{{ $json.payload.session_id }}\",\n      \"profile_id\": \"{{ $json.payload.profile_id }}\",\n      \"updated_at\": \"{{ new Date().toISOString() }}\"\n    }\n  }\n]",
+        "requestOptions": {}
+      },
+      "id": "8647f327-ce90-484a-a6a7-45fe5ab2d90e",
+      "name": "Upsert Session",
+      "type": "n8n-nodes-qdrant.qdrant",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        180
+      ],
+      "credentials": {
+        "qdrantRestApi": {
+          "id": "Oby1BsrpVHPQrXSi",
+          "name": "Qdrant account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": \"success\",\n  \"action\": \"{{ $('Webhook Trigger').item.json.action }}\",\n  \"result\": {{ $json }},\n  \"profile\": {{ $json && $json[0] ? $json[0].payload : undefined }},\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}",
+        "options": {}
+      },
+      "id": "acdf2bd2-1c47-4a5b-bb7c-1ae1072e2317",
+      "name": "Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        160,
+        -40
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Action Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Action Router": {
+      "main": [
+        [
+          {
+            "node": "Upsert Profile",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Query Profile",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Upsert Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Profile": {
+      "main": [
+        [
+          {
+            "node": "Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Profile": {
+      "main": [
+        [
+          {
+            "node": "Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Session": {
+      "main": [
+        [
+          {
+            "node": "Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "cde933f2ed17661e70b6f5cb0e7799c11769bbacc1dc72506e99220ff216ea23"
+  }
+}
