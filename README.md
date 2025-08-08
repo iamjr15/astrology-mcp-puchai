@@ -67,9 +67,47 @@ Answers a question using profile data. If birth details are provided and no `pro
 - Inputs: `question` (str), `name?` (str), `dob?` (YYYY-MM-DD), `time?` (HH:mm), `place?` (str), `timeframe?` (str), `profile_id?` (str)
 - Output: Text content with insights (and profile creation note if applicable)
 
-## MCP Client Configuration
+## Using with Puch AI (MCP)
 
-Example for an MCP host.
+Puch AI supports connecting to external MCP servers over HTTPS and requires a validate tool.
+
+- The validate tool must return the server owner's phone number as digits only: {country_code}{number}
+  - Example: `919337015103` for +91-9337015103
+- Ensure your server is publicly accessible (e.g., Vercel deployment)
+
+### Connect (Bearer Token)
+
+In any Puch conversation, run:
+
+```text
+/mcp connect https://your-app.vercel.app/mcp/ astrology
+```
+
+After connecting, Puch will validate and then list available tools (validate, astro_register_profile, astro_ask).
+
+### Useful Commands
+
+- List connected servers:
+  - `/mcp list`
+- Disconnect all MCP servers:
+  - `/mcp deactivate`
+- Set diagnostics verbosity:
+  - `/mcp diagnostics-level info` (options: error|warn|info|debug)
+
+If you use a hosted MCP server provided by Puch:
+- `/mcp use <server_id>` to enable
+- `/mcp remove <server_id>` to remove
+
+### Requirements Recap
+
+- HTTPS endpoint (Vercel deploy recommended)
+- Bearer token: set `AUTH_TOKEN` (example: `astrology`)
+- Phone number: set `MY_NUMBER` as digits only (e.g., `919337015103`)
+
+### Other MCP Hosts (JSON)
+
+If your host uses a JSON config instead of chat commands:
+
 ```json
 {
   "mcpServers": {
