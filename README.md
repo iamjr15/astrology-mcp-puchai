@@ -1,6 +1,6 @@
 ## Astrologer MCP Server / Puch AI
 
-AI-powered Vedic astrology over the Model Context Protocol (MCP). The server accepts birth details, persists user profiles (via n8n + Qdrant), and generates answers with OpenAI. It exposes MCP tools over a streamable HTTP endpoint and is deployable as a Vercel Python Function and built for Puch AI.
+AI-powered Vedic astrology over the Model Context Protocol (MCP). The server accepts birth details, persists user profiles (via n8n + Qdrant), and generates answers with OpenAI. It exposes MCP tools over a streamable HTTP endpoint and is deployable as a Render Web Service and built for Puch AI.
 
 ### Features
 
@@ -8,7 +8,7 @@ AI-powered Vedic astrology over the Model Context Protocol (MCP). The server acc
 - Persistent user memory via n8n → Qdrant (with in-memory fallback)
 - Bearer-token authentication for MCP requests
 - FastAPI app with health endpoints and MCP mounted at `/mcp/`
-- Ready-to-deploy Vercel configuration (Python runtime)
+- Ready-to-deploy Render configuration (Python web service)
 - Startup OpenAI API key validation and structured logging
 
 ### Architecture
@@ -73,14 +73,14 @@ Puch AI supports connecting to external MCP servers over HTTPS and requires a va
 
 - The validate tool must return the server owner's phone number as digits only: {country_code}{number}
   - Example: `919337015103` for +91-9337015103
-- Ensure your server is publicly accessible (e.g., Vercel deployment)
+- Ensure your server is publicly accessible (e.g., Render deployment)
 
 ### Connect (Bearer Token)
 
 In any Puch conversation, run:
 
 ```text
-/mcp connect https://your-app.vercel.app/mcp/ astrology
+/mcp connect https://your-app.onrender.com/mcp/ astrology
 ```
 
 After connecting, Puch will validate and then list available tools (validate, astro_register_profile, astro_ask).
@@ -100,7 +100,7 @@ If you use a hosted MCP server provided by Puch:
 
 ### Requirements Recap
 
-- HTTPS endpoint (Vercel deploy recommended)
+- HTTPS endpoint (Render deploy recommended)
 - Bearer token: set `AUTH_TOKEN` (example: `astrology`)
 - Phone number: set `MY_NUMBER` as digits only (e.g., `919337015103`)
 
@@ -112,21 +112,21 @@ If your host uses a JSON config instead of chat commands:
 {
   "mcpServers": {
     "astrologer": {
-      "url": "https://your-app.vercel.app/mcp/",
+      "url": "https://your-app.onrender.com/mcp/",
       "auth": { "type": "bearer", "token": "astrology" }
     }
   }
 }
 ```
 
-## Deployment (Vercel)
+## Deployment (Render)
 
-This repo includes a Python-first Vercel setup:
-- `vercel.json`
-- `api/index.py` (exports the FastAPI app)
+This repo includes a Python-first Render setup:
+- `render.yaml`
+- `render_start.py` (starts the FastAPI app)
 - `requirements.txt`
 
-Follow the detailed instructions in `VERCEL_DEPLOYMENT.md`.
+Follow the detailed instructions in `RENDER_DEPLOYMENT.md`.
 
 ## Security & Logging
 
@@ -136,23 +136,22 @@ Follow the detailed instructions in `VERCEL_DEPLOYMENT.md`.
 
 ## Troubleshooting
 
-- OpenAI 401/invalid key: ensure `OPENAI_API_KEY` is set in the environment where the process runs (Vercel dashboard, not `.env`).
+- OpenAI 401/invalid key: ensure `OPENAI_API_KEY` is set in the environment where the process runs (Render dashboard, not `.env`).
 - MCP requests via curl fail: MCP requires `Accept: text/event-stream` and a session; use an MCP host (e.g., Puch AI) instead of raw curl.
 - n8n/Qdrant not reachable: the server falls back to in-memory storage for profiles.
 - Wrong token: verify the MCP client is sending `Authorization: Bearer <AUTH_TOKEN>`.
-- Python version: use 3.11 as configured for Vercel.
+- Python version: use 3.11 as configured for Render.
 
 ## Project Structure
 
 ```
 .
-├─ api/
-│  └─ index.py                 # Vercel entry – exports FastAPI app
 ├─ mcp-bearer-token/
 │  └─ puch-astro-mcp.py        # MCP server (FastMCP + FastAPI)
-├─ vercel.json                 # Vercel configuration (Python)
+├─ render.yaml                 # Render configuration (Python web service)
+├─ render_start.py             # Render entry – starts FastAPI app
 ├─ requirements.txt            # Python dependencies
-├─ VERCEL_DEPLOYMENT.md        # Deployment guide
+├─ RENDER_DEPLOYMENT.md        # Deployment guide
 └─ README.md                   # This file
 ```
 

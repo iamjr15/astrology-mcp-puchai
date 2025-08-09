@@ -504,7 +504,7 @@ app.add_middleware(
 )
 
 # Create MCP FastAPI app and mount it
-mcp_app = mcp.streamable_http_app()
+mcp_app = mcp.http_app()
 app.mount("/mcp", mcp_app)
 
 @app.get("/")

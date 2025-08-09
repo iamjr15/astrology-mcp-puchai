@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: astrologer-mcp-server
+    env: python
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: python render_start.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11"
+      - key: AUTH_TOKEN
+        sync: false  # Set this manually in Render dashboard
+      - key: MY_NUMBER
+        sync: false  # Set this manually in Render dashboard  
+      - key: OPENAI_API_KEY
+        sync: false  # Set this manually in Render dashboard
+      - key: N8N_WEBHOOK_URL
+        sync: false  # Set this manually in Render dashboard (optional)
+      - key: N8N_WEBHOOK_SECRET
+        sync: false  # Set this manually in Render dashboard (optional)
+    healthCheckPath: /health
+    autoDeploy: true
+    disk:
+      name: data
+      mountPath: /data
+      sizeGB: 1
