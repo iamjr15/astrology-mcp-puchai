@@ -42,7 +42,7 @@ N8N_WEBHOOK_SECRET=your_webhook_secret
 
 3) Run the server
 ```bash
-python mcp-bearer-token/puch-astro-mcp.py
+python mcp-bearer-token/puch_astro_mcp.py
 ```
 
 Health checks:

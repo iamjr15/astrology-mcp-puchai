@@ -1,11 +1,5 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "api/index.py",
-      "use": "@vercel/python"
-    }
-  ],
   "routes": [
     {
       "src": "/mcp/(.*)",
@@ -19,9 +13,11 @@
   "env": {
     "PYTHON_VERSION": "3.11"
   },
+  "regions": ["bom1"],
   "functions": {
     "api/index.py": {
-      "maxDuration": 30
+      "maxDuration": 30,
+      "memory": 1536
     }
   }
 }

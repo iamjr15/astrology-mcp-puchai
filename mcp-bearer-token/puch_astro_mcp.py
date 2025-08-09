@@ -17,18 +17,16 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastmcp import FastMCP
-from fastmcp.server.auth.providers.bearer import BearerAuthProvider, RSAKeyPair
 from mcp import ErrorData, McpError
-from mcp.server.auth.provider import AccessToken
 from mcp.types import INTERNAL_ERROR, TextContent
 from pydantic import Field
 
-# configure logging
+# configure logging (Vercel-compatible - no file logging)
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('mcp_server.log', encoding='utf-8')
+        logging.StreamHandler()  # Console output only for Vercel
     ]
 )
 
@@ -47,7 +45,7 @@ N8N_WEBHOOK_SECRET = os.environ.get("N8N_WEBHOOK_SECRET")
 assert TOKEN is not None, "Please set AUTH_TOKEN in your .env file"
 assert MY_NUMBER is not None, "Please set MY_NUMBER in your .env file"
 
-# initialize openai client (if api key provided)
+# initialize openai client lazily 
 openai_client = None
 
 async def validate_openai_key(api_key: str) -> tuple[bool, str]:
@@ -73,62 +71,22 @@ async def validate_openai_key(api_key: str) -> tuple[bool, str]:
             return False, f"API validation error: {error_msg}"
 
 
-if OPENAI_API_KEY:
-    try:
-        openai_client = OpenAI(api_key=OPENAI_API_KEY)
-        
-        # validate api key at startup
-        import asyncio
-        is_valid, validation_msg = asyncio.run(validate_openai_key(OPENAI_API_KEY))
-        
-        if is_valid:
-            print(f"[OK] OpenAI API: {validation_msg}")
-        else:
-            print(f"[ERR] OpenAI API: {validation_msg}")
-            openai_client = None  # disable client if key is invalid
-            
-    except Exception as e:
-        print(f"[ERR] OpenAI initialization failed: {e}")
-        openai_client = None
-else:
-    print("[ERR] OpenAI API: No API key found - Set OPENAI_API_KEY in .env")
+def _ensure_openai_client() -> Optional[OpenAI]:
+    """Create the OpenAI client on first use; avoid startup validation on serverless."""
+    global openai_client
+    if openai_client is None and OPENAI_API_KEY:
+        try:
+            openai_client = OpenAI(api_key=OPENAI_API_KEY)
+        except Exception as exc:
+            logger.error("OpenAI initialization failed: %s", exc)
+            openai_client = None
+    return openai_client
 
 
-class SimpleBearerAuthProvider(BearerAuthProvider):
-    """Simple bearer token authentication provider for MCP server."""
-    
-    def __init__(self, token: str) -> None:
-        """Initialize the auth provider with a bearer token.
-        
-        Args:
-            token: The bearer token for authentication
-        """
-        key_pair = RSAKeyPair.generate()
-        super().__init__(
-            public_key=key_pair.public_key,
-            jwks_uri=None,
-            issuer=None,
-            audience=None
-        )
-        self.token = token
-
-    async def load_access_token(self, token: str) -> Optional[AccessToken]:
-        """Load and validate access token.
-        
-        Args:
-            token: The token to validate
-            
-        Returns:
-            AccessToken if valid, None otherwise
-        """
-        if token == self.token:
-            return AccessToken(
-                token=token,
-                client_id="puch-client",
-                scopes=["*"],
-                expires_at=None,
-            )
-        return None
+# Simple bearer auth function
+def bearer_auth(token: str) -> bool:
+    """Validate bearer token."""
+    return token == TOKEN
 
 
 def generate_profile_id(name: str, dob: str, time: str = "", place: str = "") -> str:
@@ -171,7 +129,7 @@ async def get_astrology_insights(
     """
     birth_info = f"Born on {dob} at {time_str} in {place}"
     
-    if not openai_client:
+    if not _ensure_openai_client():
         return "AI-powered astrological insights are currently unavailable. Please check your OpenAI API configuration."
 
     try:
@@ -325,10 +283,7 @@ class QdrantStorage:
 
 
 # mcp server setup
-mcp = FastMCP(
-    "Astrologer MCP Server",
-    auth=SimpleBearerAuthProvider(TOKEN),
-)
+mcp = FastMCP("Astrologer MCP Server")
 
 # fallback in-memory storage when n8n is unavailable
 _fallback_profiles: Dict[str, Dict] = {}
@@ -537,7 +492,6 @@ async def _get_profile_by_id(profile_id: str) -> Optional[Dict]:
 
 
 # Create FastAPI app for Vercel deployment
-# Create FastAPI app instance
 app = FastAPI(title="Astrologer MCP Server")
 
 # Add CORS middleware for web access
@@ -549,8 +503,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount MCP server
-app.mount("/mcp", mcp.create_fastapi_app())
+# Create MCP FastAPI app and mount it
+mcp_app = mcp.streamable_http_app()
+app.mount("/mcp", mcp_app)
 
 @app.get("/")
 async def root():
