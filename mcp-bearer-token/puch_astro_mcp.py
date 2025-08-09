@@ -20,6 +20,8 @@ from fastmcp import FastMCP
 from mcp import ErrorData, McpError
 from mcp.types import INTERNAL_ERROR, TextContent
 from pydantic import Field
+from fastapi import Request, HTTPException
+from starlette.middleware.base import BaseHTTPMiddleware
 
 # configure logging (Vercel-compatible - no file logging)
 logging.basicConfig(
@@ -491,7 +493,7 @@ async def _get_profile_by_id(profile_id: str) -> Optional[Dict]:
     return _fallback_profiles.get(profile_id)
 
 
-# Create FastAPI app for Vercel deployment
+# Create FastAPI app for Render deployment
 app = FastAPI(title="Astrologer MCP Server")
 
 # Add CORS middleware for web access
@@ -502,6 +504,29 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add bearer token authentication middleware
+
+
+class BearerTokenMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        # Skip auth for health endpoints
+        if request.url.path in ["/", "/health"]:
+            return await call_next(request)
+        
+        # Check for MCP endpoints
+        if request.url.path.startswith("/mcp"):
+            auth_header = request.headers.get("Authorization")
+            if not auth_header or not auth_header.startswith("Bearer "):
+                raise HTTPException(status_code=401, detail="Bearer token required")
+            
+            token = auth_header.split(" ", 1)[1]
+            if token != TOKEN:
+                raise HTTPException(status_code=401, detail="Invalid token")
+        
+        return await call_next(request)
+
+app.add_middleware(BearerTokenMiddleware)
 
 # Create MCP FastAPI app and mount it
 mcp_app = mcp.http_app()
