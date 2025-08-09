@@ -514,21 +514,19 @@ class BearerTokenMiddleware(BaseHTTPMiddleware):
         if request.url.path in ["/", "/health"]:
             return await call_next(request)
         
-        # Check for MCP endpoints - be more specific about paths
-        if request.url.path.startswith("/mcp") and request.url.path != "/mcp":
+        # Only check auth for MCP paths, but let MCP app handle its internal routing
+        if request.url.path.startswith("/mcp"):
             auth_header = request.headers.get("Authorization")
-            if not auth_header or not auth_header.startswith("Bearer "):
-                from starlette.responses import JSONResponse
-                return JSONResponse(status_code=401, content={"detail": "Bearer token required"})
-            
-            token = auth_header.split(" ", 1)[1]
-            if token != TOKEN:
-                from starlette.responses import JSONResponse
-                return JSONResponse(status_code=401, content={"detail": "Invalid token"})
+            if auth_header and auth_header.startswith("Bearer "):
+                token = auth_header.split(" ", 1)[1]
+                if token != TOKEN:
+                    from starlette.responses import JSONResponse
+                    return JSONResponse(status_code=401, content={"detail": "Invalid token"})
+            # If no auth header, let MCP app handle it (might be OPTIONS or other non-auth requests)
         
         return await call_next(request)
 
-# app.add_middleware(BearerTokenMiddleware)  # Temporarily disabled for testing
+app.add_middleware(BearerTokenMiddleware)
 
 # Create MCP FastAPI app and mount it
 mcp_app = mcp.http_app()

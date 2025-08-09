@@ -27,11 +27,18 @@ if __name__ == "__main__":
     # Get port from environment variable (Render sets this automatically)
     port = int(os.environ.get("PORT", 8086))
     
-    # Run the FastAPI app with uvicorn
-    uvicorn.run(
-        app,
-        host="0.0.0.0",
-        port=port,
-        log_level="info",
-        access_log=True
-    )
+    # Run the MCP server directly (same as ngrok setup)
+    import asyncio
+    
+    async def run_mcp_server():
+        # Override the port in the main function
+        print("\n" + "=" * 50)
+        print("ASTROLOGER MCP SERVER")
+        print("=" * 50)
+        print(f"[OK] Running on port: {port}")
+        print("=" * 50)
+        
+        await mcp_module.mcp.run_async("streamable-http", host="0.0.0.0", port=port)
+    
+    # Run the MCP server directly like in local setup
+    asyncio.run(run_mcp_server())
