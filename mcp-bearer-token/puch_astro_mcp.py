@@ -518,11 +518,13 @@ class BearerTokenMiddleware(BaseHTTPMiddleware):
         if request.url.path.startswith("/mcp"):
             auth_header = request.headers.get("Authorization")
             if not auth_header or not auth_header.startswith("Bearer "):
-                raise HTTPException(status_code=401, detail="Bearer token required")
+                from starlette.responses import JSONResponse
+                return JSONResponse(status_code=401, content={"detail": "Bearer token required"})
             
             token = auth_header.split(" ", 1)[1]
             if token != TOKEN:
-                raise HTTPException(status_code=401, detail="Invalid token")
+                from starlette.responses import JSONResponse
+                return JSONResponse(status_code=401, content={"detail": "Invalid token"})
         
         return await call_next(request)
 
